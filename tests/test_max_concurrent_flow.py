@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../src')
+sys.path.append('..')
 from mcf import max_concurrent_flow
 import networkx as nx
 from math import log
