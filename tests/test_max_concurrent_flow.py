@@ -28,7 +28,7 @@ def test_():
 
     # Compute what is the lambda of the found solution
 
-    lambda_ = max_concurrent_flow.lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths)
+    lambda_, lambdas = max_concurrent_flow.lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths)
     print('lambda=', lambda_)
 
 
