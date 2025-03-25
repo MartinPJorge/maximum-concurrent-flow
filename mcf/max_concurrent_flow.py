@@ -1,4 +1,7 @@
 import networkx as nx
+import logging
+import sys
+logger = logging.getLogger(__name__)
 
 
 
@@ -32,15 +35,19 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label):
 
 
 
-def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label):
+def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
+        log_level=logging.WARNING):
     """
     :param c_label: capacity label for each edge
+    :param log_level: level for logging
 
     :Note: this replaces the mcf function by shortest paths
            however, returned paths may differ for same
            commodities across iterations
     """
 
+    # Set logging level
+    logging.basicConfig(level=log_level)
 
     # Set the initial values of l in graph G
     l = {(u,v): {'l': delta/G[u][v][c_label]} for u,v,d in G.edges(data=True)}
@@ -65,18 +72,18 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label):
     i = 0
     stop = False
     while not stop:
-        print('i=',i)
+        logger.info('i=',i)
         paths[i] = {j: None for j in range(len(ds))}
         f[i] = {} if i!=0 else f[-1]
 
         # Iteration - per commodity j
         for j in range(len(ds)):
-            print('i-1=',i-1)
-            print('j-1=',j-1)
+            logger.info('i-1=',i-1)
+            logger.info('j-1=',j-1)
             f[i][j] = f[i][j-1] if j!=0 else f[i-1][len(ds)-1]
 
-            print(f'I set i={i} j={j}')
-            print(f' @start f[{i}][{j}]=', f[i][j])
+            logger.info(f'I set i={i} j={j}')
+            logger.info(f' @start f[{i}][{j}]=', f[i][j])
 
             # Send d(j) units of commodity j along the paths
             # given by min_costj(l_i,j-1)
@@ -95,8 +102,8 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label):
             nx.set_edge_attributes(G, l_ij)
 
 
-            print(f' @end f[{i}][{j}]=', f[i][j])
-            print(f' @end l[{i}][{j}]=', ls[-1])
+            logger.info(f' @end f[{i}][{j}]=', f[i][j])
+            logger.info(f' @end l[{i}][{j}]=', ls[-1])
 
         
         # procedure stops at the first phase t for which D(t)>=1
@@ -136,7 +143,7 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
             for u,v in zip(paths[i][j][:-1], paths[i][j][1:]):
                 fits = fits and (G_[u][v][c_label] >= ds[j])
 
-            print(f'@lambda i={i} j={j} fits={fits}')
+            logger.info(f'@lambda i={i} j={j} fits={fits}')
 
             # In case the sent flow fits, update the graph
             if fits:
@@ -145,7 +152,7 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
                     G_[u][v][c_label] -= ds[j]
 
 
-    print('lambdassss', lambdas)
+    logger.info('lambdassss', lambdas)
             
     return min(lambdas.values())
 
