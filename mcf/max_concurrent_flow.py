@@ -121,7 +121,7 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
     flow problem without split. It receives the result from
       max_concurrent_flow_nosplit
 
-    :returns: lambda = min_j f(j)/d(j)
+    :returns: lambda = min_j f(j)/d(j), {j: f(j)/d(j)}
     """
 
     G_ = G.copy() # TODO: copy the graph
@@ -154,5 +154,5 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
 
     logger.info('lambdassss', lambdas)
             
-    return min(lambdas.values())
+    return min(lambdas.values()), lambdas
 
