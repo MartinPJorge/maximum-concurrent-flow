@@ -7,23 +7,25 @@ from math import log
 def test_():
 
     G = nx.Graph()
-    G.add_edge(0, 1, c=10)
-    G.add_edge(0, 2, c=10)
-    G.add_edge(1, 2, c=10)
-    G.add_edge(0, 3, c=10)
-    G.add_edge(3, 2, c=10)
+    G.add_edge(0, 2, c=10, t=1)
+    G.add_edge(1, 2, c=10, t=1)
+    G.add_edge(2, 3, c=10, t=1)
+    G.add_edge(2, 4, c=1000, t=1)
+    G.add_edge(4, 3, c=1000, t=1)
 
     # commodities
-    srcs = [0, 3, 3]
-    tgts = [2, 2, 2]
-    ds   = [3, 2, 3]
+    srcs = [0, 1]
+    tgts = [3, 3]
+    ds   = [3, 2]
     eps = 0.1
     m = len(G.edges)
     delta = (m / (1-eps))**(-1/eps)
     c_label = 'c'
+    t_label = 't'
+    max_t = 2
 
     f, paths = max_concurrent_flow.max_concurrent_flow_nosplit(
-            G, srcs, tgts, ds, delta, eps, c_label)
+            G, srcs, tgts, ds, delta, eps, c_label, t_label, max_t)
 
 
     # Compute what is the lambda of the found solution
@@ -36,18 +38,6 @@ def test_():
         print('paths of commodity', j)
         for i in range(len(paths.keys())):
             print('path', i, paths[i][j])
-
-
-
-    print('We have an (1-eps)^-3 approx', (1-eps)**(-3))
-
-    print('I now scale the flow by log_(1+eps)(1/delta)',
-            log(1/delta, 1+eps))
-    i_last = max(list(f.keys()))
-    print('i_last', i_last)
-    f_ = {e: flow*log(1/delta, 1+eps)\
-            for e,flow in f[i_last][2].items()}
-    print('f_', f_)
 
 
 

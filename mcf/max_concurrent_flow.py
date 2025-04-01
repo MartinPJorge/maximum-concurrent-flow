@@ -5,7 +5,8 @@ logger = logging.getLogger(__name__)
 
 
 
-def min_cost_nosplit(G, srcs, tgts, ds, j, c_label):
+def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
+        t_label=None, max_t=None):
     """
     :param: G is the graph
     :param srcs:
@@ -13,10 +14,15 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label):
     :param ds: demand of each commodity
     :param j: commodity number
     :param c_label: capacity label for each edge
+    :param t_label: transit time label for each edge
+    :param max_t: maximum transit time of considered paths
+
+    :note: t_label and max_t are parameters used to cap the
+    maximum travel time of the path, they are not used by default.
+    If max_t is present, it is assumed that t_label is as well.
 
     :returns: path, min_costj(l)
     """
-    # TODO: cap the paths longer than T*
 
     # Computes min_cost_j(l) considering unsplittable flows
     sj, tj, dj = srcs[j], tgts[j], ds[j]
@@ -26,8 +32,19 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label):
         filter_edge=lambda u,v: G[u][v][c_label] >= dj)
 
     # Get shortest path using l as cost function
-    path = nx.shortest_path(prunedG, source=sj, target=tj,
-            weight='l')
+    if not max_t:
+        path = nx.shortest_path(prunedG, source=sj, target=tj,
+                weight='l')
+    else:
+        # Filter out shortest path if it has travel time
+        # larger than max_t
+        path = None
+        for path_i in nx.all_shortest_paths(prunedG, source=sj, target=tj):
+            travel_time = sum([G[u][v][t_label]\
+                    for u,v in zip(path_i[:-1],path_i[1:])])
+            if travel_time <= max_t:
+                path = path_i
+                break
 
     return path, sum([G[u][v]['l'] for u,v in zip(path[:-1],path[1:])])
     
@@ -36,10 +53,16 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label):
 
 
 def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
-        log_level=logging.WARNING):
+        t_label=None, max_t=None, log_level=logging.WARNING):
     """
     :param c_label: capacity label for each edge
+    :param t_label: transit time label for each edge
+    :param max_t: maximum transit time of considered paths
     :param log_level: level for logging
+
+    :note: t_label and max_t are parameters used to cap the
+    maximum travel time of the path, they are not used by default.
+    If max_t is present, it is assumed that t_label is as well.
 
     :Note: this replaces the mcf function by shortest paths
            however, returned paths may differ for same
@@ -88,7 +111,8 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
             # Send d(j) units of commodity j along the paths
             # given by min_costj(l_i,j-1)
             paths[i][j], min_costj\
-                = min_cost_nosplit(G, srcs, tgts, ds, j, c_label)
+                = min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
+                        t_label, max_t)
             for u,v in zip(paths[i][j][:-1], paths[i][j][1:]):
                 f[i][j][u,v] += ds[j]
                 f[i][j][v,u] += ds[j]
