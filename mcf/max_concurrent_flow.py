@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
-        t_label=None, max_t=None):
+        t_label=None, t_fn=None, max_t=None):
     """
     :param: G is the graph
     :param srcs:
@@ -15,11 +15,13 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
     :param j: commodity number
     :param c_label: capacity label for each edge
     :param t_label: transit time label for each edge
+    :param t_fn: transit time function receives edge dict
     :param max_t: maximum transit time of considered paths
 
     :note: t_label and max_t are parameters used to cap the
     maximum travel time of the path, they are not used by default.
-    If max_t is present, it is assumed that t_label is as well.
+    If max_t is present, it is assumed that either
+    t_fn or t_label is present (just one of them).
 
     :returns: path, min_costj(l)
     """
@@ -40,8 +42,10 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
         # larger than max_t
         path = None
         for path_i in nx.all_shortest_paths(prunedG, source=sj, target=tj):
-            travel_time = sum([G[u][v][t_label]\
+            travel_time = sum([
+                    G[u][v][t_label] if not t_fn else t_fn(G[u][v])\
                     for u,v in zip(path_i[:-1],path_i[1:])])
+            print('travel time', travel_time, 'for path_i', path_i)
             if travel_time <= max_t:
                 path = path_i
                 break
@@ -53,10 +57,11 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
 
 
 def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
-        t_label=None, max_t=None, log_level=logging.WARNING):
+        t_label=None, t_fn=None, max_t=None, log_level=logging.WARNING):
     """
     :param c_label: capacity label for each edge
     :param t_label: transit time label for each edge
+    :param t_fn: transit time function receives edge dict
     :param max_t: maximum transit time of considered paths
     :param log_level: level for logging
 
@@ -112,7 +117,7 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
             # given by min_costj(l_i,j-1)
             paths[i][j], min_costj\
                 = min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
-                        t_label, max_t)
+                        t_label, t_fn, max_t)
             for u,v in zip(paths[i][j][:-1], paths[i][j][1:]):
                 f[i][j][u,v] += ds[j]
                 f[i][j][v,u] += ds[j]

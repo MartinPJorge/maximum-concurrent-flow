@@ -25,7 +25,10 @@ def test_():
     max_t = 2
 
     f, paths = max_concurrent_flow.max_concurrent_flow_nosplit(
-            G, srcs, tgts, ds, delta, eps, c_label, t_label, max_t)
+            G, srcs, tgts, ds, delta, eps, c_label,
+            t_label=None,
+            t_fn=lambda d: d[t_label],
+            max_t=max_t)
 
 
     # Compute what is the lambda of the found solution
