@@ -39,7 +39,7 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
     # Get shortest path using l as cost function
     if search_paths:
         # Get the shortest path among the list of paths with cost l
-        pathsj, min_l_cost, min_path = search_paths[j], 100000000000000, None
+        pathsj, min_l_cost, min_path = search_paths[j], float('inf'), None
         for path_i in pathsj:
             l_cost = sum([G[u][v]['l'] for u,v in zip(path_i[:-1],path_i[1:])])
             if l_cost < min_l_cost:
