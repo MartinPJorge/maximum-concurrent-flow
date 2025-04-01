@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 
 
 def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
-        t_label=None, t_fn=None, max_t=None):
+        t_label=None, t_fn=None, max_t=None, search_paths=None):
     """
     :param: G is the graph
     :param srcs:
@@ -17,11 +17,14 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
     :param t_label: transit time label for each edge
     :param t_fn: transit time function receives edge dict
     :param max_t: maximum transit time of considered paths
+    :param search_paths: list of path lists for each src-tgt
 
     :note: t_label and max_t are parameters used to cap the
     maximum travel time of the path, they are not used by default.
     If max_t is present, it is assumed that either
     t_fn or t_label is present (just one of them).
+
+    :note: if paths is specified, t_lavel, t_fn and max_t are ignored
 
     :returns: path, min_costj(l)
     """
@@ -34,21 +37,31 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
         filter_edge=lambda u,v: G[u][v][c_label] >= dj)
 
     # Get shortest path using l as cost function
-    if not max_t:
-        path = nx.shortest_path(prunedG, source=sj, target=tj,
-                weight='l')
+    if search_paths:
+        # Get the shortest path among the list of paths with cost l
+        pathsj, min_l_cost, min_path = search_paths[j], 100000000000000, None
+        for path_i in pathsj:
+            l_cost = sum([G[u][v]['l'] for u,v in zip(path_i[:-1],path_i[1:])])
+            if l_cost < min_l_cost:
+                min_path = path_i
+                min_l_cost = l_cost
+        path = min_path
     else:
-        # Filter out shortest path if it has travel time
-        # larger than max_t
-        path = None
-        for path_i in nx.all_shortest_paths(prunedG, source=sj, target=tj):
-            travel_time = sum([
-                    G[u][v][t_label] if not t_fn else t_fn(G[u][v])\
-                    for u,v in zip(path_i[:-1],path_i[1:])])
-            print('travel time', travel_time, 'for path_i', path_i)
-            if travel_time <= max_t:
-                path = path_i
-                break
+        if not max_t:
+            path = nx.shortest_path(prunedG, source=sj, target=tj,
+                    weight='l')
+        else:
+            # Filter out shortest path if it has travel time
+            # larger than max_t
+            path = None
+            for path_i in nx.shortest_simple_paths(prunedG, source=sj, target=tj):
+                travel_time = sum([
+                        G[u][v][t_label] if not t_fn else t_fn(G[u][v])\
+                        for u,v in zip(path_i[:-1],path_i[1:])])
+                logger.info('travel time', travel_time, 'max:', max_t, 'for path_i', path_i)
+                if travel_time <= max_t:
+                    path = path_i
+                    break
 
     return path, sum([G[u][v]['l'] for u,v in zip(path[:-1],path[1:])])
     
@@ -57,12 +70,14 @@ def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
 
 
 def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
-        t_label=None, t_fn=None, max_t=None, log_level=logging.WARNING):
+        t_label=None, t_fn=None, max_t=None, search_paths=None,
+        log_level=logging.WARNING):
     """
     :param c_label: capacity label for each edge
     :param t_label: transit time label for each edge
     :param t_fn: transit time function receives edge dict
     :param max_t: maximum transit time of considered paths
+    :param search_paths: list of path lists for each src-tgt
     :param log_level: level for logging
 
     :note: t_label and max_t are parameters used to cap the
@@ -72,6 +87,8 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
     :Note: this replaces the mcf function by shortest paths
            however, returned paths may differ for same
            commodities across iterations
+
+    :note: if paths is specified, t_lavel, t_fn and max_t are ignored
     """
 
     # Set logging level
@@ -117,7 +134,7 @@ def max_concurrent_flow_nosplit(G, srcs, tgts, ds, delta, eps, c_label,
             # given by min_costj(l_i,j-1)
             paths[i][j], min_costj\
                 = min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
-                        t_label, t_fn, max_t)
+                        t_label, t_fn, max_t, search_paths)
             for u,v in zip(paths[i][j][:-1], paths[i][j][1:]):
                 f[i][j][u,v] += ds[j]
                 f[i][j][v,u] += ds[j]
