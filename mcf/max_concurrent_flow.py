@@ -1,6 +1,7 @@
 import networkx as nx
 import logging
 import sys
+from collections import defaultdict
 logger = logging.getLogger(__name__)
 
 
@@ -202,3 +203,100 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
             
     return min(lambdas.values()), lambdas
 
+
+import networkx as nx
+
+def min_cost(G, srcs, tgts, ds, j):
+    """
+    Computes the minimum-cost routing for commodity j by distributing its demand
+    among the available edge-disjoint paths, prioritizing shorter paths and
+    respecting their capacities.
+
+    Returns the used paths with their assigned flow and the total routing cost.
+    """
+
+    s, t = srcs[j], tgts[j]
+    demand = ds[j]
+
+    # 1) Compute all edge-disjoint paths between source and target
+    paths = list(nx.edge_disjoint_paths(G, s, t))
+    if not paths:
+        raise ValueError("No hay edge-disjoint paths")
+
+    # 2) Compute the length and capacity of each path
+    path_info = []
+    for P in paths:
+        length = sum(G[u][v]["l"] for u, v in zip(P[:-1], P[1:]))
+        capacity = min(G[u][v]["capacity"] for u, v in zip(P[:-1], P[1:]))
+        path_info.append((P, length, capacity))
+
+    # 3) Sort paths by increasing length
+    path_info.sort(key=lambda x: x[1])
+
+    # 4) Distribute the demand along the paths
+    requirement = demand
+    route = []
+    total_cost = 0
+
+    for P, length, cap in path_info:
+        if requirement == 0:
+            break
+        flow = min(cap, requirement)  
+        route.append((P, flow))
+        total_cost +=  length*flow
+        requirement -= flow
+
+    if requirement > 0:
+        raise ValueError("No hay capacidad suficiente para la demanda")
+
+    return route, total_cost
+
+def min_cost2(G, s, t, demand, c_label="capacity", l_label="l"):
+    """
+    Routes the demand from s to t using successive shortest paths.
+    At each step, the minimum-cost path is selected, the maximum feasible
+    flow is sent through it, and residual capacities are updated.
+
+    Returns:
+    - flow: routed flow per edge {(u, v): f_uv}
+    - total_cost: total cost sum_e l_e * f_e
+    """
+
+    # Copy the graph to avoid modifying the original one    
+    R = G.copy()
+    sent_flow = 0
+    flow = defaultdict(float)
+    total_cost = 0.0
+
+    while sent_flow < demand:
+
+        remaining = demand - sent_flow
+
+        # 1) Remove edges with insufficient residual capacity
+        eligible_edges_graph = nx.subgraph_view(
+            R,
+            filter_edge=lambda u, v: R[u][v][c_label] >0
+        )
+
+        # 2) Find the minimum-cost path
+        try:
+            path = nx.shortest_path(eligible_edges_graph, source=s, target=t, weight=l_label)
+        except nx.NetworkXNoPath:
+            raise ValueError("No hay más caminos para enviar la demanda")
+
+        # 3) Compute the path capacity (bottleneck)
+        edges = list(zip(path[:-1], path[1:]))
+        path_cap = min(R[u][v][c_label] for u, v in edges)
+
+        # 4) Determine the amount of flow to send
+        f = min(path_cap, remaining)
+
+        # 5) Route the flow and update residual capacities
+        for u, v in edges:
+            flow[(u, v)] += f
+            total_cost += f * R[u][v][l_label]
+            R[u][v][c_label] -= f
+
+        sent_flow += f
+
+    return dict(flow), total_cost
