@@ -1,14 +1,13 @@
 import sys
-from mcf import min_cost
+from mcf import min_cost_alternative
 import networkx as nx
 from math import log
 
 def test_():
-
     """
     Test topology with three alternative paths between source and destination:
     0-1-5, 0-1-2-5, and 0-3-4-5. All links have unit cost but different capacities.
-    A demand of 10 flow units is sent from s to t to test the min_cost algorithm.
+    A demand of 7 flow units is sent from s to t to test the min_cost_alternative algorithm.
     """
 
     G = nx.Graph()
@@ -30,23 +29,12 @@ def test_():
     #commodities
     srcs = ['0']
     tgts = ['5']
-    ds   = [10]
+    ds   = [7]
 
-    flow, paths,cost = min_cost(
-        G,
-        s=srcs[0],
-        t=tgts[0],
-        demand=ds[0],
-        c_label="capacity",
-        l_label="l"
-    )
-    for P, f in paths:
-        print(" -> ".join(P), "flow:",f)
-    print("Flow per edge:", flow)
+    path, cost = min_cost_alternative(G, srcs, tgts, ds, j=0)
+
+    print("Flow per edge:", path)
     print("Cost:", cost)
-  
-    print("Final flow:", f)
-  
 
 
 if __name__ == '__main__':
