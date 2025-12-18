@@ -255,7 +255,7 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
         # 4) Determine the amount of flow to send
         f = min(path_cap, remaining)
 
-        # Guardar path y flujo enviado
+        # Store the path and the routed flow
         used_paths.append((path, f))
 
         # 5) Route the flow and update residual capacities
