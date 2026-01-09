@@ -51,7 +51,7 @@ def test_():
                 print("  ", " -> ".join(P), "flow:", flow)
 
 
-    lambda_star, lambdas = lambda_max_concurrent_flow_split(
+    lambda_star, lambdas, fitted_flow = lambda_max_concurrent_flow_split(
     G=G,
     ds=ds,
     c_label="capacity",

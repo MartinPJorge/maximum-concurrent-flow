@@ -265,7 +265,7 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
             R[u][v][c_label] -= f
             cap_after = R[u][v][c_label]
 
-            print(f"Edge {u} -> {v}: capacity -> {cap_after}")
+            # print(f"Edge {u} -> {v}: capacity -> {cap_after}")
         sent_flow += f
 
     return dict(flow), used_paths, total_cost
@@ -399,51 +399,58 @@ def max_concurrent_flow_split(
     return f, paths
 
 def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
-    """
-    Computes the lambda value for the SPLITTABLE maximum concurrent flow
-    solution, explicitly checking capacity feasibility.
-
-    paths[i][j] = list of (path_nodes, flow_sent_on_that_path)
-
-    Returns:
-      lambda_star = min_j (total_flow_sent_j / d_j)
-      lambdas     = {j: total_flow_sent_j / d_j}
-    """
 
     # Copy of the graph to simulate residual capacities
     G_ = G.copy()
 
     # Total flow effectively accepted per commodity
     flow_sent = {j: 0.0 for j in range(len(ds))}
+    fitted_flow = {j: [] for j in range(len(ds))}
+
+    print("Initial capacities:")
+    for u, v, d in G_.edges(data=True):
+        print(f"  {u}-{v}: {d[c_label]}")
 
     for i in paths.keys():
+        print(f"\n Phase {i}")
+
         for j in range(len(ds)):
+            print(f" Commodity {j} demand={ds[j]}")
 
             used_paths = paths[i][j]  # list of (path_nodes, flow)
 
             for path_nodes, flow in used_paths:
-                # 1) Check whether the flow fits on all edges of the path
-                fits = True
+
                 edges = list(zip(path_nodes[:-1], path_nodes[1:]))
 
-                for u, v in edges:
-                    if G_[u][v][c_label] < flow:
-                        fits = False
-                        break
+                min_cap = min(G_[u][v][c_label] for u, v in edges)
 
-                # 2) If feasible, update residual capacities and accumulate flow
-                if fits:
+                fitted = min(flow, min_cap)
+
+                print(f"  Path {' -> '.join(path_nodes)} ,requested: {flow} , fitted: {fitted}")
+
+                if fitted > 0:
+                    # update residual capacities
                     for u, v in edges:
-                        G_[u][v][c_label] -= flow
+                        G_[u][v][c_label] -= fitted
 
-                    flow_sent[j] += flow
+                    # accumulate total sent for commodity j
+                    flow_sent[j] += fitted
 
-            print(f'{i},{j} flow sent:', flow_sent[j])
+                fitted_flow[j].append({
+                    'edges': edges,
+                    'flow': fitted
+                })
+          
+        for u, v, d in G_.edges(data=True):
+            print(f"  {u}-{v}: {d[c_label]}")
 
     # Lambda value per commodity
-    lambdas = {j: flow_sent[j] / ds[j] for j in range(len(ds))}
+    lambdas = {
+        j: (flow_sent[j] / ds[j] if ds[j] > 0 else 0.0)
+        for j in range(len(ds))
+    }
     lambda_star = min(lambdas.values()) if lambdas else 0.0
 
-    print('lambdas per iteration:', lambdas)
 
-    return lambda_star, lambdas
+    return lambda_star, lambdas, fitted_flow
