@@ -405,7 +405,7 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
     # Total flow effectively accepted per commodity
     flow_sent = {j: 0.0 for j in range(len(ds))}
-    fitted_flow = {j: [] for j in range(len(ds))}
+    fitted_flow = {j: {} for j in range(len(ds))}
 
     print("Initial capacities:")
     for u, v, d in G_.edges(data=True):
@@ -437,10 +437,14 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
                     # accumulate total sent for commodity j
                     flow_sent[j] += fitted
 
-                fitted_flow[j].append({
-                    'edges': edges,
-                    'flow': fitted
-                })
+                # Keep track of the fitted flow along the edges
+                edges_hash = hash(str(edges))
+                if edges_hash not in fitted_flow[j]:
+                    fitted_flow[j][edges_hash] = {
+                        'edges': edges,
+                        'flow': 0
+                    }
+                fitted_flow[j][edges_hash]['flow'] += fitted
           
         for u, v, d in G_.edges(data=True):
             print(f"  {u}-{v}: {d[c_label]}")
