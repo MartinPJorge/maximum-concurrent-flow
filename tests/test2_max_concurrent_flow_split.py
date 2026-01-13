@@ -1,7 +1,9 @@
 import sys
+sys.path.append('..')
 from mcf import min_cost, max_concurrent_flow_split, lambda_max_concurrent_flow_split
 import networkx as nx
 from math import log
+import json
 
 def test_():
 
@@ -60,6 +62,8 @@ def test_():
 
     print("λ global:", lambda_star)
     print("λ por commodity:", lambdas)
+
+    print('fitted_flow:', json.dumps(fitted_flow, indent=2))
 
 
 if __name__ == '__main__':
