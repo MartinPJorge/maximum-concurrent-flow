@@ -427,7 +427,7 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
                 fitted = min(flow, min_cap)
 
-                print(f"  Path {' -> '.join(path_nodes)} ,requested: {flow} , fitted: {fitted}")
+                print(f"  Path {' -> '.join(map(str,path_nodes))} ,requested: {flow} , fitted: {fitted}")
 
                 if fitted > 0:
                     # update residual capacities
