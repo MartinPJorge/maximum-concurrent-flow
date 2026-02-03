@@ -306,49 +306,89 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
     return dict(flow), used_paths, total_cost
 
 
-def min_cost_aux(R, s, t, demand,visited_shortest_paths,shortest_paths, generator_count, flow, used_paths, total_cost, c_label="capacity", l_label="l"):
+def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l")
+    """
+    Routes the demand from s to t using successive shortest paths.
+    At each step, the minimum-cost path is selected, the maximum feasible
+    flow is sent through it, and residual capacities are updated.
+
+    Returns:
+    - flow: routed flow per edge {(u, v): f_uv}
+    - used_paths: list of (path, routed_flow)
+    - total_cost: total cost sum_e l_e * f_e
+    """
+
+    used_paths = []
     sent_flow = 0.0
     start_p=0
-    while sent_flow < demand:
-        i=0
+    i=0 # start_p+i points to the next path to try
+    simple_paths = nx.shortest_simple_paths(G, s, t, weight=l_label)
+    visited_simple_paths = []
+    gen_paths = 0 # keep track of #generated paths
+    G_ = G.copy() # aux version of the graph
+    flow = defaultdict(float) # sent flow over each edge
+    no_paths = False # flag for no more paths to generate
 
-        if i < len(visited_shortest_paths):
-            path = visited_shortest_paths[i]
+
+    # Until we send all flow
+    while sent_flow < demand: # TODO: break if  no more chances...
+
+        # If there are no paths to gen and we try the last -> NO SOLUTION
+        if no_paths and start_p == len(visited_simple_paths):
+            return None, None, None
+
+        # Check if path idx points to a generated path
+        if start_p+i < len(visited_simple_paths):
+            path = visited_simple_paths[start_p+i]
         else:
             try:
-                path = next(shortest_paths)
-                generator_count["count"] = i
-            except StopIteration:
-                return False, visited_shortest_paths, sent_flow, total_cost
+                path = next(simple_paths)
+                gen_paths += 1
+            except StopIteration: # no more paths to try out
+                no_paths = True
 
-            visited_shortest_paths.append(path)
+                # Restart variables
+                i = 0
+                start_p +=1 
+                sent_flow = 0
+                total_cost = 0
+                flow = defaultdict(float)
+                G_ = G.copy()
+                used_paths = []
 
+                continue
+
+            visited_simple_paths.append(path)
+        i += 1
+
+        # Get path maximum capacity
         edges = list(zip(path[:-1], path[1:]))
-
         cap_max = min(R[u][v].get(c_label, 0.0) for (u, v) in edges)
 
+        # Not enough capacity -> BREAK
         if cap_max <= 0:
-            i += 1
-            generator_count["count"] = i
+            i = 0
+            start_p +=1 
             sent_flow = 0
+            total_cost = 0
+            flow = defaultdict(float)
+            G_ = G.copy()
+            used_paths = []
             continue
 
+        # Send all possible remaining flow through the path
         send = min(cap_max, demand - sent_flow)
-
         for (u, v) in edges:
-            R[u][v][c_label] -= send
+            G_[u][v][c_label] -= send
             flow[(u, v)] += send
 
-        path_cost = sum(R[u][v].get(l_label, 0.0) for (u, v) in edges)
+        # Update total cost incurred, sent flow and used paths
+        path_cost = sum(G_[u][v].get(l_label, 0.0) for (u, v) in edges)
         total_cost += send * path_cost
-
-        used_paths.append((path, send))
         sent_flow += send
+        used_paths.append((path, send))
 
-        i += 1
-        generator_count["count"] = i
-
-    return True, visited_shortest_paths, sent_flow, total_cost
+    return True, visited_simple_paths, sent_flow, total_cost
 
 
 
