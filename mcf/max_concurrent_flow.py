@@ -204,7 +204,7 @@ def lambda_max_concurrent_flow_nosplit(G, ds, c_label, paths):
             
     return min(lambdas.values()), lambdas
 
-def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
+def min_cost2(G, s, t, demand, c_label="capacity", l_label="l"):
     """
     Routes the demand from s to t using successive shortest paths.
     At each step, the minimum-cost path is selected, the maximum feasible
@@ -226,7 +226,10 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
     # print('Routing demand:', demand, 'from', s, 'to', t)
 
     # print('Graph', G.edges(data=True))
+    i = 0
     while sent_flow < demand:
+        i += 1
+        print(f'  i={i}')
 
         remaining = demand - sent_flow
 
@@ -235,8 +238,11 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
             R,
             filter_edge=lambda u, v: R[u][v][c_label] > 0
         )
-
-        # 2) Find the minimum-cost path
+        print("Remaining:", remaining)
+        print("Edges con capacidad mayor que >0:", eligible_edges_graph.number_of_edges())
+        for u, v, d in R.edges(data=True):
+            if d["capacity"] <= 0:
+                print("Edge:", u, v, d["capacity"])
         try:
             path = nx.shortest_path(
                 eligible_edges_graph,
@@ -247,6 +253,8 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
             # print('Found path:', path)
         except nx.NetworkXNoPath:
             raise ValueError("No hay más caminos para enviar la demanda")
+
+        print('path:' , path)
 
         # 3) Compute the path capacity (bottleneck)
         edges = list(zip(path[:-1], path[1:]))
@@ -270,6 +278,80 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
 
     return dict(flow), used_paths, total_cost
 
+def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
+
+    R = G.copy()
+
+    shortest_paths_generator = nx.all_shortest_paths(R, s, t, weight=l_label)
+
+    visited_shortest_paths = []      
+    generator_count = {'count': 0}   
+
+    flow = defaultdict(float)
+    used_paths = []
+    total_cost = 0.0
+    sent_flow = 0.0
+
+    success, visited_shortest_paths, sent_flow, total_cost = min_cost_aux(
+        R, s, t, demand,
+        visited_shortest_paths,
+        shortest_paths_generator,
+        generator_count,
+        sent_flow,
+        flow,
+        used_paths,
+        total_cost,
+        c_label,
+        l_label,
+    )
+
+    return dict(flow), used_paths, total_cost
+
+
+def min_cost_aux(R, s, t, demand,visited_shortest_paths,shortest_paths_generator, generator_count, sent_flow, flow, used_paths, total_cost, c_label="capacity", l_label="l"):
+    i = generator_count["count"]
+
+    while sent_flow < demand:
+
+        if i < len(visited_shortest_paths):
+            path = visited_shortest_paths[i]
+        else:
+            try:
+                path = next(shortest_paths_generator)  
+            except StopIteration:
+                return False, visited_shortest_paths, sent_flow, total_cost
+
+            visited_shortest_paths.append(path)
+
+        edges = list(zip(path[:-1], path[1:]))
+
+        cap_max = min(R[u][v].get(c_label, 0.0) for (u, v) in edges)
+
+        if cap_max <= 0:
+            i += 1
+            generator_count["count"] = i
+            continue
+
+        send = min(cap_max, demand - sent_flow)
+
+        for (u, v) in edges:
+            R[u][v][c_label] -= send
+            flow[(u, v)] += send
+
+        path_cost = sum(R[u][v].get(l_label, 0.0) for (u, v) in edges)
+        total_cost += send * path_cost
+
+        used_paths.append((path, send))
+        sent_flow += send
+
+        i += 1
+        generator_count["count"] = i
+
+    return True, visited_shortest_paths, sent_flow, total_cost
+
+
+
+        
 def min_cost_alternative(G, srcs, tgts, ds, j):
     """
     Computes the minimum-cost routing for commodity j by distributing its demand
@@ -407,15 +489,15 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
     flow_sent = {j: 0.0 for j in range(len(ds))}
     fitted_flow = {j: {} for j in range(len(ds))}
 
-    print("Initial capacities:")
-    for u, v, d in G_.edges(data=True):
-        print(f"  {u}-{v}: {d[c_label]}")
+    # print("Initial capacities:")
+    # for u, v, d in G_.edges(data=True):
+    #     print(f"  {u}-{v}: {d[c_label]}")
 
     for i in paths.keys():
-        print(f"\n Phase {i}")
+    #     print(f"\n Phase {i}")
 
         for j in range(len(ds)):
-            print(f" Commodity {j} demand={ds[j]}")
+        #     print(f" Commodity {j} demand={ds[j]}")
 
             used_paths = paths[i][j]  # list of (path_nodes, flow)
 
@@ -427,7 +509,7 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
                 fitted = min(flow, min_cap)
 
-                print(f"  Path {' -> '.join(map(str,path_nodes))} ,requested: {flow} , fitted: {fitted}")
+                # print(f"  Path {' -> '.join(map(str,path_nodes))} ,requested: {flow} , fitted: {fitted}")
 
                 if fitted > 0:
                     # update residual capacities
@@ -446,8 +528,8 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
                     }
                 fitted_flow[j][edges_hash]['flow'] += fitted
           
-        for u, v, d in G_.edges(data=True):
-            print(f"  {u}-{v}: {d[c_label]}")
+        # for u, v, d in G_.edges(data=True):
+        #     print(f"  {u}-{v}: {d[c_label]}")
 
     # Lambda value per commodity
     lambdas = {
