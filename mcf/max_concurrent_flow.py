@@ -282,7 +282,7 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
 
     R = G.copy()
 
-    shortest_paths = nx.all_shortest_paths(R, s, t, weight=l_label)
+    shortest_paths = nx.all_simple_paths(R, s, t, weight=l_label)
 
     visited_shortest_paths = []      
     generator_count = {'count': 0}   
@@ -290,14 +290,12 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
     flow = defaultdict(float)
     used_paths = []
     total_cost = 0.0
-    sent_flow = 0.0
 
     success, visited_shortest_paths, sent_flow, total_cost = min_cost_aux(
         R, s, t, demand,
         visited_shortest_paths,
         shortest_paths,
         generator_count,
-        sent_flow,
         flow,
         used_paths,
         total_cost,
@@ -308,16 +306,18 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
     return dict(flow), used_paths, total_cost
 
 
-def min_cost_aux(R, s, t, demand,visited_shortest_paths,shortest_paths, generator_count, sent_flow, flow, used_paths, total_cost, c_label="capacity", l_label="l"):
-    i = generator_count["count"]
-
+def min_cost_aux(R, s, t, demand,visited_shortest_paths,shortest_paths, generator_count, flow, used_paths, total_cost, c_label="capacity", l_label="l"):
+    sent_flow = 0.0
+    start_p=0
     while sent_flow < demand:
+        i=0
 
         if i < len(visited_shortest_paths):
             path = visited_shortest_paths[i]
         else:
             try:
-                path = next(shortest_paths)  
+                path = next(shortest_paths)
+                generator_count["count"] = i
             except StopIteration:
                 return False, visited_shortest_paths, sent_flow, total_cost
 
@@ -330,6 +330,7 @@ def min_cost_aux(R, s, t, demand,visited_shortest_paths,shortest_paths, generato
         if cap_max <= 0:
             i += 1
             generator_count["count"] = i
+            sent_flow = 0
             continue
 
         send = min(cap_max, demand - sent_flow)
