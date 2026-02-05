@@ -306,7 +306,7 @@ def min_cost(G, s, t, demand, c_label="capacity", l_label="l"):
     return dict(flow), used_paths, total_cost
 
 
-def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l")
+def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l"):
     """
     Routes the demand from s to t using successive shortest paths.
     At each step, the minimum-cost path is selected, the maximum feasible
@@ -328,7 +328,7 @@ def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l")
     G_ = G.copy() # aux version of the graph
     flow = defaultdict(float) # sent flow over each edge
     no_paths = False # flag for no more paths to generate
-
+    total_cost = 0.0
 
     # Until we send all flow
     while sent_flow < demand: # TODO: break if  no more chances...
@@ -360,10 +360,11 @@ def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l")
 
             visited_simple_paths.append(path)
         i += 1
+        print('path:' , path)
 
         # Get path maximum capacity
         edges = list(zip(path[:-1], path[1:]))
-        cap_max = min(R[u][v].get(c_label, 0.0) for (u, v) in edges)
+        cap_max = min(G_[u][v].get(c_label, 0.0) for (u, v) in edges)
 
         # Not enough capacity -> BREAK
         if cap_max <= 0:
@@ -388,7 +389,7 @@ def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l")
         sent_flow += send
         used_paths.append((path, send))
 
-    return True, visited_simple_paths, sent_flow, total_cost
+    return dict(flow), used_paths, total_cost
 
 
 

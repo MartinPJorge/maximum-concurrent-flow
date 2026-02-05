@@ -1,4 +1,5 @@
 from .max_concurrent_flow import min_cost_alternative
 from .max_concurrent_flow import min_cost
+from .max_concurrent_flow import min_cost_v2
 from .max_concurrent_flow import max_concurrent_flow_split
 from .max_concurrent_flow import lambda_max_concurrent_flow_split
