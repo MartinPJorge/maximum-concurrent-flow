@@ -1,6 +1,6 @@
 import sys
 sys.path.append('..')
-from mcf import min_cost_noDigraph
+from mcf import min_cost_noDigraph, flow_to_used_paths
 import networkx as nx
 from math import log
 def test_():
@@ -20,18 +20,15 @@ def test_():
         "C": -200
     }
 
-    y_star, cost, y_hat = min_cost_noDigraph(G, b)
+    flow_dict = min_cost_noDigraph(G, b)
+    print("Flow dict:", flow_dict)
 
-    print("problema auxiliar R)")
-    for k, v in sorted(y_hat.items()):
-        print(f"{k}: {v}")
+    
 
-    print("problema original no dirigido")
-    for k, v in sorted(y_star.items()):
-        print(f"{k}: {v}")
+    used_paths = flow_to_used_paths(flow_dict, s="A", t="C")
 
-    print(cost)
-
+    for p, f in used_paths:
+        print(p, f)
   
 
 

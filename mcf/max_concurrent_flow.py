@@ -1,7 +1,7 @@
 import networkx as nx
 import logging
 import sys
-from collections import defaultdict
+from collections import defaultdict, deque
 
 logger = logging.getLogger(__name__)
 
@@ -310,34 +310,9 @@ def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",):
 
     flow_dict = nx.min_cost_flow(D, demand="demand", capacity="capacity", weight="weight")
 
-     
-    y_hat = {(u, v): float(f)
-             for u, nbrs in flow_dict.items()
-             for v, f in nbrs.items()
-             if f != 0}
+   
+    return flow_dict
 
-    y_star = {}
-    for u, v, data in G.edges(data=True):
-        cap =data[capacity]
-        c = data[cost]
-
-        fij = float(flow_dict.get(u, {}).get(v, 0.0))
-        fji = float(flow_dict.get(v, {}).get(u, 0.0))
-
-        if c < 0:
-            f = (cap - fij - fji) / 2.0
-            fij += f
-            fji += f
-
-        y_star[(u, v)] = fij
-        y_star[(v, u)] = fji
-
-    total_cost_original = sum(
-        float(data[cost]) * (y_star[(u, v)] + y_star[(v, u)])
-        for u, v, data in G.edges(data=True)
-    )
-
-    return y_star, float(total_cost_original), y_hat
     
 def max_concurrent_flow_split(
     G, srcs, tgts, ds, delta, eps, c_label,
