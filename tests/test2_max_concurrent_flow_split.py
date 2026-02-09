@@ -1,6 +1,7 @@
 import sys
+
 sys.path.append('..')
-from mcf import min_cost, max_concurrent_flow_split, lambda_max_concurrent_flow_split
+from mcf import  max_concurrent_flow_split, lambda_max_concurrent_flow_split,min_cost_noDigraph,flow_to_used_paths,min_cost_for_mcf
 import networkx as nx
 from math import log
 import json
@@ -17,19 +18,32 @@ def test_():
 
     G = nx.Graph()
 
-    # Path P1: 0 -> 1 -> 5
     G.add_edge('0', '1', l=1, capacity=20)
     G.add_edge('1', '5', l=1, capacity=8)
 
-    # Path P2: 0 -> 1 -> 2->5 
-    G.add_edge('0', '1', l=1, capacity=20)
+    # Path P2: 0 -> 1 -> 2 -> 5
     G.add_edge('1', '2', l=1, capacity=8)
     G.add_edge('2', '5', l=1, capacity=8)
 
-    # Path P3: 0 ->3->4-> 5 
+    # Path P3: 0 -> 3 -> 4 -> 5
     G.add_edge('0', '3', l=1, capacity=10)
     G.add_edge('3', '4', l=1, capacity=10)
     G.add_edge('4', '5', l=1, capacity=10)
+
+    # --- b: +10 sale de 0, -10 entra en 5 ---
+    b = {'0': 10, '5': -10}
+
+    flow = min_cost_noDigraph(G, b)
+    print("Flow dict (solo aristas con flujo > 0):")
+    for u, nbrs in flow.items():
+        for v, f in nbrs.items():
+            if f > 0:
+                print(f"  {u} -> {v}: {f}")
+
+    used_paths= flow_to_used_paths( flow, '0', '5', 1e-6)
+    print("Used paths and their flows:")
+    print(json.dumps(used_paths, indent=2))
+    
 
     #commodities
     srcs = ['0']
@@ -38,6 +52,11 @@ def test_():
     eps=0.1
     m = len(G.edges)
     delta = (m / (1-eps))**(-1/eps)
+    flow_ij, used_paths = min_cost_for_mcf(
+                G, '0', '5', 10,
+                c_label="capacity",
+                l_label='l'
+            )
     f, paths = max_concurrent_flow_split(G,
         srcs,
         tgts,
@@ -53,17 +72,17 @@ def test_():
                 print("  ", " -> ".join(P), "flow:", flow)
 
 
-    lambda_star, lambdas, fitted_flow = lambda_max_concurrent_flow_split(
-    G=G,
-    ds=ds,
-    c_label="capacity",
-    paths=paths
-)
+#     lambda_star, lambdas, fitted_flow = lambda_max_concurrent_flow_split(
+#     G=G,
+#     ds=ds,
+#     c_label="capacity",
+#     paths=paths
+# )
 
-    print("λ global:", lambda_star)
-    print("λ por commodity:", lambdas)
+#     print("λ global:", lambda_star)
+#     print("λ por commodity:", lambdas)
 
-    print('fitted_flow:', json.dumps(fitted_flow, indent=2))
+#     print('fitted_flow:', json.dumps(fitted_flow, indent=2))
 
 
 if __name__ == '__main__':

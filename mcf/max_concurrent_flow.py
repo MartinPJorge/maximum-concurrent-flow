@@ -313,32 +313,90 @@ def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",):
    
     return flow_dict
 
-    
+def flow_to_used_paths(flow_dict, s, t, tol=1e-9):
+    flow_graph=defaultdict(dict)
+    for nodo, next in flow_dict.items():#nodo y su vercino y el flujo entre ellos
+        for v, f in next.items():
+            if f > tol:
+                flow_graph[nodo][v] = float(f)
+
+    used_paths = []
+
+    while True:
+        parent = {s: None}
+        q = deque([s])
+
+        while q and t not in parent:
+            u = q.popleft()
+            for v in flow_graph.get(u, {}):
+                if v not in parent:
+                    parent[v] = u
+                    q.append(v)
+
+        if t not in parent:
+            break
+
+        path, cur = [], t
+        while cur is not None:
+            path.append(cur)
+            cur = parent[cur]
+        path.reverse()
+
+        bottleneck = min(flow_graph[u][v] for u, v in zip(path, path[1:]))
+        used_paths.append((path, bottleneck))
+
+        for u, v in zip(path, path[1:]):
+            flow_graph[u][v] -= bottleneck
+            if flow_graph[u][v] <= tol:
+                del flow_graph[u][v]
+
+    return used_paths
+
+def min_cost_for_mcf(G, s, t, demand, c_label="capacity", l_label="l"):
+    b = {n: 0 for n in G.nodes()}
+    b[s] = demand
+    b[t] = -demand
+    print("min_cost_for_mcf b =", b)
+    print("min_cost_for_mcf sum(b) =", sum(b.values()))
+    flow_dict = min_cost_noDigraph(G, b, c_label, l_label)
+    sent_from_s = sum(flow_dict.get(s, {}).values())
+    print(f"min_cost_for_mcf outflow from s in flow_dict = {sent_from_s}")
+    used_paths = flow_to_used_paths(flow_dict, s, t)
+    sent_paths = sum(fl for _, fl in used_paths)
+    print(f"min_cost_for_mcf sum(used_paths flows) = {sent_paths}")
+    print(f"min_cost_for_mcf used_paths = {used_paths}")
+
+
+    return flow_dict, used_paths
+
+
 def max_concurrent_flow_split(
     G, srcs, tgts, ds, delta, eps, c_label,
     log_level=logging.WARNING
 ):
-    """
-    Maximum Concurrent Flow (splittable version).
-
-    Returns:
-      - f[i][j][(u,v)] : flow of commodity j on edge (u,v) at phase i
-      - paths[i][j]    : list of (path, flow) used for commodity j at phase i
-    """
+    import copy
+    import logging
 
     logging.basicConfig(level=log_level)
 
+    print("\n===== INIT max_concurrent_flow_split =====")
+
     # Initial edge lengths: l_{1,0}(e) = delta / c(e)
-    l0 = {(u, v): {'l': delta / d[c_label]} for u, v, d in G.edges(data=True)}
+    l0 = {}
+    for u, v, d in G.edges(data=True):
+        l0[(u, v)] = {'l': delta / d[c_label]}
+        print(f"INIT l({u},{v}) = {l0[(u,v)]['l']}")
+
     nx.set_edge_attributes(G, l0)
-    # Keep track of the flow sent at each phase for all commodities
+
+    # Initial flow f[-1]
     f = {
         -1: {
-            len(ds)-1: {(u,v): 0 for u,v in G.edges}
+            len(ds) - 1: {(u, v): 0 for u, v in G.edges}
         }
     }
-    for u,v in G.edges:
-        f[-1][len(ds)-1][v,u] = 0
+    for u, v in G.edges:
+        f[-1][len(ds) - 1][v, u] = 0
 
     paths = {}
 
@@ -346,56 +404,87 @@ def max_concurrent_flow_split(
     stop = False
 
     while not stop:
-        logger.info('i=',i)
+        print(f"PHASE i = {i}")
+      
+
         paths[i] = {j: None for j in range(len(ds))}
-        f[i] = {} if i!=0 else f[-1]
-    
-        # Iteration - per commodity j
+        f[i] = {}
+
+        # ---- Iteration per commodity ----
         for j in range(len(ds)):
             s, t = srcs[j], tgts[j]
             demand = ds[j]
 
-            logger.info('i-1=',i-1)
-            logger.info('j-1=',j-1)
-            f[i][j] = f[i][j-1] if j!=0 else f[i-1][len(ds)-1]
+            print(f"\n--- Commodity j = {j} ---")
+            print(f"Source = {s}, Target = {t}, Demand = {demand}")
 
-            logger.info(f'I set i={i} j={j}')
-            logger.info(f' @start f[{i}][{j}]=', f[i][j])
+            # Copy previous flow
+            if j != 0:
+                f[i][j] = copy.deepcopy(f[i][j - 1])
+                print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
+            else:
+                f[i][j] = copy.deepcopy(f[i - 1][len(ds) - 1])
+                print(f"f[{i}][{j}] <- copy f[{i-1}][{len(ds)-1}]")
 
-        # Iteration per commodity j
-            # Solve min_cost_j(l_{i,j-1}) — SPLIT
-            flow_ij, used_paths, _ = min_cost_v2(
-                G,
-                s,
-                t,
-                demand,
+            print("Flow BEFORE min-cost:")
+            for (u, v), val in f[i][j].items():
+                if val > 0:
+                    print(f"  f({u},{v}) = {val}")
+
+            # ---- Solve min-cost ----
+            flow_ij, used_paths = min_cost_for_mcf(
+                G, s, t, demand,
                 c_label=c_label,
                 l_label='l'
             )
-            # print('used paths[0]', used_paths[0])
+
+            print("\nMin-cost returned paths:")
+            for p, fl in used_paths:
+                print(f"  Path {p}  flow={fl}")
+
+            # ---- Accumulate flow ----
             for path, flow in used_paths:
                 for u, v in zip(path[:-1], path[1:]):
-                    if (u,v) not in G.edges:
-                        u, v = v, u # reverse edge
-                    f[i][j][u,v] += flow
+                    if (u, v) not in G.edges:
+                        u, v = v, u
+                    f[i][j][u, v] += flow
+                    print(f"ADD flow: f({u},{v}) += {flow} -> {f[i][j][u,v]}")
 
             paths[i][j] = used_paths
-            # Update lengths l_{i,j}(e)
+
+            # ---- Update lengths ----
+            print("\nUpdating edge lengths:")
             new_l = {}
             for u, v, d in G.edges(data=True):
-                #fij = flow_ij.get((u, v), 0.0)
-                fij = f[i][j][u,v]
-                new_l[(u, v)] = {
-                    'l': d['l'] * (1 + eps * fij / d[c_label])
-                }
+                fij = f[i][j].get((u, v), 0.0) + f[i][j].get((v, u), 0.0)
+                old_l = d['l']
+                new_val = old_l * (1 + eps * fij / d[c_label])
+                new_l[(u, v)] = {'l': new_val}
+                print(
+                    f"  edge ({u},{v}): "
+                    f"fij={fij}, cap={d[c_label]}, "
+                    f"l_old={old_l}, l_new={new_val}"
+                )
 
             nx.set_edge_attributes(G, new_l)
-        # Stopping condition: D(l) >= 1
-        D = sum(d['l'] * d[c_label] for _, _, d in G.edges(data=True))
+
+        # ---- Compute D(l) ----
+        D = 0.0
+        print("\nComputing D(l):")
+        for u, v, d in G.edges(data=True):
+            contrib = d['l'] * d[c_label]
+            D += contrib
+            print(f"  ({u},{v}): l={d['l']} cap={d[c_label]} -> {contrib}")
+
+        print(f"\nTOTAL D = {D}")
+
         stop = D >= 1
+        print("STOP =", stop)
+
         i += 1
 
     return f, paths
+
 
 def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
