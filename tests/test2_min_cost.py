@@ -1,5 +1,6 @@
 import sys
-from mcf import min_cost
+sys.path.append('..')
+from mcf import min_cost_for_mcf
 import networkx as nx
 from math import log
 
@@ -26,28 +27,21 @@ def test_():
     G.add_edge('0', '3', l=1, capacity=5)
     G.add_edge('3', '4', l=1, capacity=5)
     G.add_edge('4', '5', l=1, capacity=5)
+    b = {'0': 10, '5': -10}
+
 
     #commodities
     srcs = ['0']
     tgts = ['5']
     ds   = [10]
 
-    flow, paths,cost = min_cost(
-        G,
-        s=srcs[0],
-        t=tgts[0],
-        demand=ds[0],
-        c_label="capacity",
-        l_label="l"
+    flow_ij, used_paths = min_cost_for_mcf(
+                G, '0', '5', 10,
+                c_label="capacity",
+                l_label='l',
     )
-    for P, f in paths:
-        print(" -> ".join(P), "flow:",f)
-    print("Flow per edge:", flow)
-    print("Cost:", cost)
-  
-    print("Final flow:", f)
-  
-
-
+            
+    for P, f in used_paths:
+        print(f"Path: {P}, Flow: {f}")
 if __name__ == '__main__':
     test_()

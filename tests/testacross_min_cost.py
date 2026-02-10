@@ -1,6 +1,6 @@
 import sys
 sys.path.append('..')
-from mcf import min_cost_v2, min_cost_noDigraph, flow_to_used_paths
+from mcf import min_cost_for_mcf, max_concurrent_flow_split, lambda_max_concurrent_flow_split
 import networkx as nx
 from math import log
 import json
@@ -35,36 +35,45 @@ def test_():
     G.add_edge("r9", "ru", l=1, capacity=200)
     b = {'gNB': 300, 'UPF': -300}
 
-    flow = min_cost_noDigraph(G, b)
-    print("Flow dict (solo aristas con flujo > 0):")
-    for u, nbrs in flow.items():
-        for v, f in nbrs.items():
-            if f > 0:
-                print(f"  {u} -> {v}: {f}")
+    srcs = ['gNB']
+    tgts = ['UPF']
+    ds   = [300]
+    eps=0.99
+    m = len(G.edges)
+    delta = (m / (1-eps))**(-1/eps)
+    print("Delta:", delta)
+    flow_ij, used_paths = min_cost_for_mcf(
+                G, 'gNB', 'UPF', 300,
+                c_label="capacity",
+                l_label='l',
+                delta=delta,
+            )
+    f, paths = max_concurrent_flow_split(G,
+        srcs,
+        tgts,
+        ds,
+        delta,
+        eps,
+        c_label="capacity")
 
-    used_paths= flow_to_used_paths( flow, 'gNB', 'UPF', 1e-6)
-    print("Used paths and their flows:")
-    print(json.dumps(used_paths, indent=2))
+    for i in paths:
+        for j in paths[i]:
+            print(f"Phase {i}, commodity {j}")
+            for P, flow in paths[i][j]:
+                print("  ", " -> ".join(P), "flow:", flow)
 
-    #    # commodity
-    # srcs = ["gNB"]
-    # tgts = ["UPF"]
-    # ds = [300]
 
-    # flow, paths,cost = min_cost_v2(
-    #     G,
-    #     s=srcs[0],
-    #     t=tgts[0],
-    #     demand=ds[0],
-    #     c_label="capacity",
-    #     l_label="l"
-    # )
-    # for P, f in paths:
-    #     print(" -> ".join(P), "flow:",f)
-    # print("Flow per edge:", flow)
-    # print("Cost:", cost)
-  
-    # print("Final flow:", f)
+    lambda_star, lambdas, fitted_flow = lambda_max_concurrent_flow_split(
+    G=G,
+    ds=ds,
+    c_label="capacity",
+    paths=paths
+)
+
+    print("λ global:", lambda_star)
+    print("λ por commodity:", lambdas)
+
+    print('fitted_flow:', json.dumps(fitted_flow, indent=2))
   
 
 

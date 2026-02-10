@@ -2,9 +2,12 @@ import networkx as nx
 import logging
 import sys
 from collections import defaultdict, deque
-
+import copy
+import logging
+from scipy.stats import qmc
 logger = logging.getLogger(__name__)
-
+from math import log
+import numpy as np
 
 
 def min_cost_nosplit(G, srcs, tgts, ds, j, c_label,
@@ -292,33 +295,53 @@ def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l"):
     return dict(flow), used_paths, total_cost
 
 
-def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",):
+def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",delta=1.0):
     
 
     D = nx.DiGraph()
+    print('dict b', b)
     for n in G.nodes():
-        
-        D.add_node(n, demand=-b.get(n, 0))
+        D.add_node(n, demand=-b.get(n,0))
+    
+    min_c_plus = float("inf")
+    for _, _, data in G.edges(data=True):
+        c_plus = max(data[cost], 0)
+        if c_plus > 0:
+            min_c_plus = min(min_c_plus, c_plus)
+
 
     for u, v, data in G.edges(data=True):
         cap = data[capacity]
         c = data[cost]
         c_plus = max(c, 0)
+        
+        print(f"Delta={delta} cap={cap} c_plus={c_plus}")
+       
+        weight_conver=int(c_plus/min_c_plus)
+        print(f"weight_conver={weight_conver}")
+        
+        D.add_edge(u, v, capacity=cap, weight=weight_conver)
+        D.add_edge(v, u, capacity=cap, weight=weight_conver)
 
-        D.add_edge(u, v, capacity=cap, weight=c_plus)
-        D.add_edge(v, u, capacity=cap, weight=c_plus)
+
+    print("-----------BEFORE")
+
+    print('Capacities')
+    for u, v, data in D.edges(data=True):
+        print(f"  {u} -> {v}: capacity={data['capacity']} weight={data['weight']}")
 
     flow_dict = nx.min_cost_flow(D, demand="demand", capacity="capacity", weight="weight")
+
+    print("-----------AFTER")
 
    
     return flow_dict
 
 def flow_to_used_paths(flow_dict, s, t, tol=1e-9):
     flow_graph=defaultdict(dict)
-    for nodo, next in flow_dict.items():#nodo y su vercino y el flujo entre ellos
+    for nodo, next in flow_dict.items():
         for v, f in next.items():
-            if f > tol:
-                flow_graph[nodo][v] = float(f)
+            flow_graph[nodo][v] = float(f)
 
     used_paths = []
 
@@ -352,13 +375,13 @@ def flow_to_used_paths(flow_dict, s, t, tol=1e-9):
 
     return used_paths
 
-def min_cost_for_mcf(G, s, t, demand, c_label="capacity", l_label="l"):
+def min_cost_for_mcf(G, s, t, demand, c_label="capacity", l_label="l",delta='delta'):
     b = {n: 0 for n in G.nodes()}
     b[s] = demand
     b[t] = -demand
     print("min_cost_for_mcf b =", b)
     print("min_cost_for_mcf sum(b) =", sum(b.values()))
-    flow_dict = min_cost_noDigraph(G, b, c_label, l_label)
+    flow_dict = min_cost_noDigraph(G, b, c_label, l_label,delta)
     sent_from_s = sum(flow_dict.get(s, {}).values())
     print(f"min_cost_for_mcf outflow from s in flow_dict = {sent_from_s}")
     used_paths = flow_to_used_paths(flow_dict, s, t)
@@ -374,8 +397,7 @@ def max_concurrent_flow_split(
     G, srcs, tgts, ds, delta, eps, c_label,
     log_level=logging.WARNING
 ):
-    import copy
-    import logging
+    
 
     logging.basicConfig(level=log_level)
 
@@ -385,7 +407,8 @@ def max_concurrent_flow_split(
     l0 = {}
     for u, v, d in G.edges(data=True):
         l0[(u, v)] = {'l': delta / d[c_label]}
-        print(f"INIT l({u},{v}) = {l0[(u,v)]['l']}")
+        print(f" l({u},{v}) = {l0[(u,v)]['l']}")
+    
 
     nx.set_edge_attributes(G, l0)
 
@@ -435,7 +458,7 @@ def max_concurrent_flow_split(
             flow_ij, used_paths = min_cost_for_mcf(
                 G, s, t, demand,
                 c_label=c_label,
-                l_label='l'
+                l_label='l',delta=delta
             )
 
             print("\nMin-cost returned paths:")
@@ -470,7 +493,7 @@ def max_concurrent_flow_split(
 
         # ---- Compute D(l) ----
         D = 0.0
-        print("\nComputing D(l):")
+        print("\n D(l):")
         for u, v, d in G.edges(data=True):
             contrib = d['l'] * d[c_label]
             D += contrib

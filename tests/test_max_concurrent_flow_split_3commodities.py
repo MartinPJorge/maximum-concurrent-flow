@@ -1,7 +1,7 @@
 import json
 import sys
 sys.path.append('..')
-from mcf import  max_concurrent_flow_split, lambda_max_concurrent_flow_split, min_cost
+from mcf import  max_concurrent_flow_split, lambda_max_concurrent_flow_split, min_cost_for_mcf
 import networkx as nx
 from math import log
 
@@ -30,22 +30,7 @@ def test_():
     m = len(G.edges)
     delta = (m / (1-eps))**(-1/eps)
 
-    for j in range(len(ds)):
-        flow, paths,cost = min_cost(
-            G,
-            s=srcs[j],
-            t=tgts[j],
-            demand=ds[j],
-            c_label="capacity",
-            l_label="l"
-        )
-        for P, f in paths:
-            print(" -> ".join(P), "flow:",f)
-        print("Flow per edge:", flow)
-        print("Cost:", cost)
     
-        print("Final flow:", f)
-
     f, paths = max_concurrent_flow_split(G,
         srcs,
         tgts,
@@ -61,7 +46,7 @@ def test_():
                 print("  ", " -> ".join(P), "flow:", flow)
 
 
-    lambda_star, lambdas,fitted_flow  = lambda_max_concurrent_flow_split(
+    lambda_star, lambdas, fitted_flow = lambda_max_concurrent_flow_split(
     G=G,
     ds=ds,
     c_label="capacity",
@@ -70,7 +55,8 @@ def test_():
 
     print("λ global:", lambda_star)
     print("λ por commodity:", lambdas)
-    print('fitted_flow:', json.dumps(fitted_flow,indent=2))
+
+    print('fitted_flow:', json.dumps(fitted_flow, indent=2))
 
 
 if __name__ == '__main__':

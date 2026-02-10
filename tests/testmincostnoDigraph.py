@@ -29,26 +29,26 @@ def test_():
 
     for p, f in used_paths:
         print(p, f)
-    #commodities
-    srcs = ['A']
-    tgts = ['C']
-    ds   = [200]
-    eps=0.1
-    m = len(G.edges)
-    delta = (m / (1-eps))**(-1/eps)
-    f, paths = max_concurrent_flow_split(G,
-        srcs,
-        tgts,
-        ds,
-        delta,
-        eps,
-        c_label="capacity")
+    # #commodities
+    # srcs = ['A']
+    # tgts = ['C']
+    # ds   = [200]
+    # eps=0.1
+    # m = len(G.edges)
+    # delta = (m / (1-eps))**(-1/eps)
+    # f, paths = max_concurrent_flow_split(G,
+    #     srcs,
+    #     tgts,
+    #     ds,
+    #     delta,
+    #     eps,
+    #     c_label="capacity")
 
-    for i in paths:
-        for j in paths[i]:
-            print(f"Phase {i}, commodity {j}")
-            for P, flow in paths[i][j]:
-                print("  ", " -> ".join(P), "flow:", flow)
+    # for i in paths:
+    #     for j in paths[i]:
+    #         print(f"Phase {i}, commodity {j}")
+    #         for P, flow in paths[i][j]:
+    #             print("  ", " -> ".join(P), "flow:", flow)
 
 
 if __name__ == '__main__':
