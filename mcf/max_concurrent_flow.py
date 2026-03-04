@@ -569,3 +569,57 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
 
     return lambda_star, lambdas, fitted_flow
+
+def lambda_max_concurrent_flow_split2(G, ds, c_label, paths):
+    G_ = G.copy()
+
+    flow_sent = {j: 0.0 for j in range(len(ds))}
+    fitted_flow = {j: {} for j in range(len(ds))}
+
+    for i in paths.keys():
+
+        # si todas las commodities ya están satisfechas, salimos
+        if all(ds[j] <= 0 or flow_sent[j] >= ds[j] for j in range(len(ds))):
+            break
+
+        for j in range(len(ds)):
+
+            #  si no hay demanda o ya llegamos a lambda=1 para esta commodity, no envíes más
+            if ds[j] <= 0 or flow_sent[j] >= ds[j]:
+                continue
+
+            used_paths = paths[i][j]  # list of (path_nodes, flow)
+
+            for path_nodes, flow in used_paths:
+
+                if flow_sent[j] >= ds[j]:
+                    break
+
+                edges = list(zip(path_nodes[:-1], path_nodes[1:]))
+                min_cap = min(G_[u][v][c_label] for u, v in edges)
+
+                remaining = ds[j] - flow_sent[j]
+                fitted = min(flow, min_cap, remaining)
+
+                if fitted > 0:
+                    for u, v in edges:
+                        G_[u][v][c_label] -= fitted
+                    flow_sent[j] += fitted
+
+                edges_hash = hash(str(edges))
+                if edges_hash not in fitted_flow[j]:
+                    fitted_flow[j][edges_hash] = {'edges': edges, 'flow': 0.0}
+                fitted_flow[j][edges_hash]['flow'] += fitted
+
+    lambdas = {
+        j: (flow_sent[j] / ds[j] if ds[j] > 0 else 0.0)
+        for j in range(len(ds))
+    }
+    lambda_star = min(lambdas.values()) if lambdas else 0.0
+
+    # opcional: por estabilidad numérica, capar a 1.0
+    lambda_star = min(lambda_star, 1.0)
+    for j in lambdas:
+        lambdas[j] = min(lambdas[j], 1.0)
+
+    return lambda_star, lambdas, fitted_flow
