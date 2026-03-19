@@ -517,7 +517,6 @@ def max_concurrent_flow_split_per_commodity_graphs(
     log_level=logging.WARNING
 ):
     """
-    Modelo 1:
     - Cada commodity j usa su propio grafo Gs[j]
     - Las longitudes se actualizan globalmente entre fases
     - El flujo NO consume capacidades físicamente entre fases
