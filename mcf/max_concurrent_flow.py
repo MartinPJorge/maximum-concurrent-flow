@@ -508,6 +508,168 @@ def max_concurrent_flow_split(
 
     return f, paths
 
+def _edge_key(u, v):
+    return tuple(sorted((u, v)))
+
+
+def max_concurrent_flow_split_per_commodity_graphs(
+    Gs, srcs, tgts, ds, delta, eps, c_label,
+    log_level=logging.WARNING
+):
+    """
+    Modelo 1:
+    - Cada commodity j usa su propio grafo Gs[j]
+    - Las longitudes se actualizan globalmente entre fases
+    - El flujo NO consume capacidades físicamente entre fases
+    - Cada fase empieza con flujo cero
+    """
+
+    logging.basicConfig(level=log_level)
+
+    n_com = len(ds)
+
+
+    print("\n===== INIT max_concurrent_flow_split_per_commodity_graphs =====")
+
+
+    all_edges = set()
+    for Gj in Gs:
+        for u, v in Gj.edges():
+            all_edges.add(_edge_key(u, v))
+
+    for j, Gj in enumerate(Gs):
+        l0 = {}
+        print(f"\nInicializando longitudes para commodity {j}")
+        for u, v, d in Gj.edges(data=True):
+            l0[(u, v)] = {'l': delta / d[c_label]}
+            print(f"  G[{j}] edge ({u},{v}) -> l = {l0[(u,v)]['l']}")
+        nx.set_edge_attributes(Gj, l0)
+
+
+    f = {}
+    paths = {}
+
+    i = 0
+    stop = False
+
+    while not stop:
+        print(f"\n================ PHASE i = {i} ================")
+
+        paths[i] = {j: None for j in range(n_com)}
+        f[i] = {}
+
+        phase_zero_flow = {ek: 0.0 for ek in all_edges}
+
+        for j in range(n_com):
+            s, t = srcs[j], tgts[j]
+            demand = ds[j]
+            Gj = Gs[j]
+
+            print(f"\n--- Commodity j = {j} ---")
+            print(f"Source = {s}, Target = {t}, Demand = {demand}")
+
+            # Dentro de la fase, j sí ve lo acumulado por commodities previos
+            if j != 0:
+                f[i][j] = copy.deepcopy(f[i][j - 1])
+                print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
+            else:
+                f[i][j] = copy.deepcopy(phase_zero_flow)
+                print(f"f[{i}][{j}] <- zero flow (new phase)")
+
+            Gj_res = nx.Graph()
+
+            print("Residual capacities:")
+            for u, v, d in Gj.edges(data=True):
+                ek = _edge_key(u, v)
+                used = f[i][j][ek]
+                cap_total = d[c_label]
+                cap_res = cap_total - used
+
+                print(
+                    f"  edge ({u},{v}): cap_total={cap_total}, "
+                    f"used={used}, cap_res={cap_res}"
+                )
+
+                if cap_res > 1e-12:
+                    Gj_res.add_edge(
+                        u, v,
+                        **{
+                            c_label: cap_res,
+                            'l': d['l']
+                        }
+                    )
+
+            Gj_res.add_nodes_from(Gj.nodes(data=True))
+
+            if not (s in Gj_res and t in Gj_res and nx.has_path(Gj_res, s, t)):
+                print(f"No residual path for commodity {j}")
+                paths[i][j] = []
+                continue
+
+            flow_ij, used_paths = min_cost_for_mcf(
+                Gj_res, s, t, demand,
+                c_label=c_label,
+                l_label='l',
+                delta=delta
+            )
+
+            print("\nMin-cost returned paths:")
+            for p, fl in used_paths:
+                print(f"  Path {p} flow={fl}")
+
+            for path, flow in used_paths:
+                for u, v in zip(path[:-1], path[1:]):
+                    ek = _edge_key(u, v)
+                    f[i][j][ek] += flow
+                    print(f"ADD global-in-phase flow on {ek}: +{flow} -> {f[i][j][ek]}")
+
+            paths[i][j] = used_paths
+
+
+            print("\nUpdating edge lengths with accumulated in-phase flow:")
+            for jj, Gjj in enumerate(Gs):
+                new_l = {}
+                for u, v, d in Gjj.edges(data=True):
+                    ek = _edge_key(u, v)
+                    fij = f[i][j].get(ek, 0.0)
+                    old_l = d['l']
+                    new_val = old_l * (1 + eps * fij / d[c_label])
+
+                    new_l[(u, v)] = {'l': new_val}
+
+                    print(
+                        f"  G[{jj}] edge ({u},{v}): "
+                        f"fij={fij}, cap={d[c_label]}, "
+                        f"l_old={old_l}, l_new={new_val}"
+                    )
+
+                nx.set_edge_attributes(Gjj, new_l)
+
+  
+        D = 0.0
+        seen = set()
+
+        print("\nD(l) global:")
+        for Gj in Gs:
+            for u, v, d in Gj.edges(data=True):
+                ek = _edge_key(u, v)
+                if ek in seen:
+                    continue
+                seen.add(ek)
+
+                contrib = d['l'] * d[c_label]
+                D += contrib
+                print(f"  edge {ek}: l={d['l']} cap={d[c_label]} -> {contrib}")
+
+        print(f"\nTOTAL D = {D}")
+
+        stop = D >= 1
+        print("STOP =", stop)
+
+        i += 1
+
+    return f, paths
+
 
 def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
 
