@@ -733,6 +733,54 @@ def lambda_max_concurrent_flow_split(G, ds, c_label, paths):
     return lambda_star, lambdas, fitted_flow
 
 def lambda_max_concurrent_flow_split2(G, ds, c_label, paths):
+    """
+     Compute the maximum concurrent flow value (lambda) while preventing
+    oversatisfaction of commodity demands.
+
+    This function simulates the allocation of flow along a set of candidate
+    paths and tracks the amount of flow that can be effectively routed given
+    the residual capacities of the network.
+
+    Unlike the original implementation, this version caps the effective
+    allocation for each commodity when its demand is fully satisfied
+    (i.e., when λ_j = flow_sent[j] / ds[j] reaches 1). Once the demand of a
+    commodity is met, no additional traffic is routed for that commodity,
+    even if residual link capacity is still available.
+
+    The motivation for this modification is that, in the Maximum Concurrent
+    Flow (MCF) problem, λ represents the fraction of demand that can be
+    simultaneously satisfied for all commodities. Since satisfying more than
+    100% of a demand has no meaning in this context, allowing additional flow
+    beyond the demand may distort the interpretation of λ and lead to
+    unnecessary use of network capacity.
+
+    Therefore, this implementation:
+    - Stops allocating flow for a commodity once its demand is satisfied.
+    - Prevents routing more flow than the remaining unsatisfied demand.
+    - Optionally caps λ values at 1 for numerical stability.
+
+    Parameters
+    ----------
+    G : networkx.Graph
+        Input network graph containing edge capacities.
+    ds : list[float]
+        Demand for each commodity.
+    c_label : str
+        Edge attribute name storing link capacities.
+    paths : dict
+        Dictionary of candidate paths per phase and commodity.
+        Format: paths[i][j] = list of (path_nodes, flow).
+
+    Returns
+    -------
+    lambda_star : float
+        Maximum concurrent flow value (minimum λ across commodities).
+    lambdas : dict
+        Achieved λ value for each commodity.
+    fitted_flow : dict
+        Dictionary describing the effective routed flow per commodity
+        and path.
+    """
     G_ = G.copy()
 
     flow_sent = {j: 0.0 for j in range(len(ds))}
@@ -740,13 +788,11 @@ def lambda_max_concurrent_flow_split2(G, ds, c_label, paths):
 
     for i in paths.keys():
 
-        # si todas las commodities ya están satisfechas, salimos
         if all(ds[j] <= 0 or flow_sent[j] >= ds[j] for j in range(len(ds))):
             break
 
         for j in range(len(ds)):
 
-            #  si no hay demanda o ya llegamos a lambda=1 para esta commodity, no envíes más
             if ds[j] <= 0 or flow_sent[j] >= ds[j]:
                 continue
 
