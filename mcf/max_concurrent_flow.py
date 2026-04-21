@@ -299,7 +299,7 @@ def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",delta=1.
     
 
     D = nx.DiGraph()
-    print('dict b', b)
+    # print('dict b', b)
     for n in G.nodes():
         D.add_node(n, demand=-b.get(n,0))
     
@@ -315,24 +315,24 @@ def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",delta=1.
         c = data[cost]
         c_plus = max(c, 0)
         
-        print(f"Delta={delta} cap={cap} c_plus={c_plus}")
+        # print(f"Delta={delta} cap={cap} c_plus={c_plus}")
        
         weight_conver=int(c_plus/min_c_plus)
-        print(f"weight_conver={weight_conver}")
+        # print(f"weight_conver={weight_conver}")
         
         D.add_edge(u, v, capacity=cap, weight=weight_conver)
         D.add_edge(v, u, capacity=cap, weight=weight_conver)
 
 
-    print("-----------BEFORE")
+    # print("-----------BEFORE")
 
-    print('Capacities')
-    for u, v, data in D.edges(data=True):
-        print(f"  {u} -> {v}: capacity={data['capacity']} weight={data['weight']}")
+    # print('Capacities')
+    # for u, v, data in D.edges(data=True):
+        # print(f"  {u} -> {v}: capacity={data['capacity']} weight={data['weight']}")
 
     flow_dict = nx.min_cost_flow(D, demand="demand", capacity="capacity", weight="weight")
 
-    print("-----------AFTER")
+    # print("-----------AFTER")
 
    
     return flow_dict
@@ -379,15 +379,15 @@ def min_cost_for_mcf(G, s, t, demand, c_label="capacity", l_label="l",delta='del
     b = {n: 0 for n in G.nodes()}
     b[s] = demand
     b[t] = -demand
-    print("min_cost_for_mcf b =", b)
-    print("min_cost_for_mcf sum(b) =", sum(b.values()))
+    # print("min_cost_for_mcf b =", b)
+    # print("min_cost_for_mcf sum(b) =", sum(b.values()))
     flow_dict = min_cost_noDigraph(G, b, c_label, l_label,delta)
     sent_from_s = sum(flow_dict.get(s, {}).values())
-    print(f"min_cost_for_mcf outflow from s in flow_dict = {sent_from_s}")
+    # print(f"min_cost_for_mcf outflow from s in flow_dict = {sent_from_s}")
     used_paths = flow_to_used_paths(flow_dict, s, t)
     sent_paths = sum(fl for _, fl in used_paths)
-    print(f"min_cost_for_mcf sum(used_paths flows) = {sent_paths}")
-    print(f"min_cost_for_mcf used_paths = {used_paths}")
+    # print(f"min_cost_for_mcf sum(used_paths flows) = {sent_paths}")
+    # print(f"min_cost_for_mcf used_paths = {used_paths}")
 
 
     return flow_dict, used_paths
@@ -401,13 +401,13 @@ def max_concurrent_flow_split(
 
     logging.basicConfig(level=log_level)
 
-    print("\n===== INIT max_concurrent_flow_split =====")
+    # print("\n===== INIT max_concurrent_flow_split =====")
 
     # Initial edge lengths: l_{1,0}(e) = delta / c(e)
     l0 = {}
     for u, v, d in G.edges(data=True):
         l0[(u, v)] = {'l': delta / d[c_label]}
-        print(f" l({u},{v}) = {l0[(u,v)]['l']}")
+        # print(f" l({u},{v}) = {l0[(u,v)]['l']}")
     
 
     nx.set_edge_attributes(G, l0)
@@ -427,7 +427,7 @@ def max_concurrent_flow_split(
     stop = False
 
     while not stop:
-        print(f"PHASE i = {i}")
+        # print(f"PHASE i = {i}")
       
 
         paths[i] = {j: None for j in range(len(ds))}
@@ -438,21 +438,21 @@ def max_concurrent_flow_split(
             s, t = srcs[j], tgts[j]
             demand = ds[j]
 
-            print(f"\n--- Commodity j = {j} ---")
-            print(f"Source = {s}, Target = {t}, Demand = {demand}")
+            # print(f"\n--- Commodity j = {j} ---")
+            # print(f"Source = {s}, Target = {t}, Demand = {demand}")
 
             # Copy previous flow
             if j != 0:
                 f[i][j] = copy.deepcopy(f[i][j - 1])
-                print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
+                # print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
             else:
                 f[i][j] = copy.deepcopy(f[i - 1][len(ds) - 1])
-                print(f"f[{i}][{j}] <- copy f[{i-1}][{len(ds)-1}]")
+                # print(f"f[{i}][{j}] <- copy f[{i-1}][{len(ds)-1}]")
 
-            print("Flow BEFORE min-cost:")
-            for (u, v), val in f[i][j].items():
-                if val > 0:
-                    print(f"  f({u},{v}) = {val}")
+            # print("Flow BEFORE min-cost:")
+            # for (u, v), val in f[i][j].items():
+            #     if val > 0:
+                    # print(f"  f({u},{v}) = {val}")
 
             # ---- Solve min-cost ----
             flow_ij, used_paths = min_cost_for_mcf(
@@ -461,9 +461,9 @@ def max_concurrent_flow_split(
                 l_label='l',delta=delta
             )
 
-            print("\nMin-cost returned paths:")
-            for p, fl in used_paths:
-                print(f"  Path {p}  flow={fl}")
+            # print("\nMin-cost returned paths:")
+            # for p, fl in used_paths:
+                # print(f"  Path {p}  flow={fl}")
 
             # ---- Accumulate flow ----
             for path, flow in used_paths:
@@ -471,38 +471,38 @@ def max_concurrent_flow_split(
                     if (u, v) not in G.edges:
                         u, v = v, u
                     f[i][j][u, v] += flow
-                    print(f"ADD flow: f({u},{v}) += {flow} -> {f[i][j][u,v]}")
+                    # print(f"ADD flow: f({u},{v}) += {flow} -> {f[i][j][u,v]}")
 
             paths[i][j] = used_paths
 
             # ---- Update lengths ----
-            print("\nUpdating edge lengths:")
+            # print("\nUpdating edge lengths:")
             new_l = {}
             for u, v, d in G.edges(data=True):
                 fij = f[i][j].get((u, v), 0.0) + f[i][j].get((v, u), 0.0)
                 old_l = d['l']
                 new_val = old_l * (1 + eps * fij / d[c_label])
                 new_l[(u, v)] = {'l': new_val}
-                print(
-                    f"  edge ({u},{v}): "
-                    f"fij={fij}, cap={d[c_label]}, "
-                    f"l_old={old_l}, l_new={new_val}"
-                )
+                # print(
+                #     f"  edge ({u},{v}): "
+                #     f"fij={fij}, cap={d[c_label]}, "
+                #     f"l_old={old_l}, l_new={new_val}"
+                # )
 
             nx.set_edge_attributes(G, new_l)
 
         # ---- Compute D(l) ----
         D = 0.0
-        print("\n D(l):")
+        # print("\n D(l):")
         for u, v, d in G.edges(data=True):
             contrib = d['l'] * d[c_label]
             D += contrib
-            print(f"  ({u},{v}): l={d['l']} cap={d[c_label]} -> {contrib}")
+            # print(f"  ({u},{v}): l={d['l']} cap={d[c_label]} -> {contrib}")
 
-        print(f"\nTOTAL D = {D}")
+        # print(f"\nTOTAL D = {D}")
 
         stop = D >= 1
-        print("STOP =", stop)
+        # print("STOP =", stop)
 
         i += 1
 
@@ -528,7 +528,7 @@ def max_concurrent_flow_split_per_commodity_graphs(
     n_com = len(ds)
 
 
-    print("\n===== INIT max_concurrent_flow_split_per_commodity_graphs =====")
+    # print("\n===== INIT max_concurrent_flow_split_per_commodity_graphs =====")
 
 
     all_edges = set()
@@ -538,10 +538,10 @@ def max_concurrent_flow_split_per_commodity_graphs(
 
     for j, Gj in enumerate(Gs):
         l0 = {}
-        print(f"\nInicializando longitudes para commodity {j}")
+        # print(f"\nInicializando longitudes para commodity {j}")
         for u, v, d in Gj.edges(data=True):
             l0[(u, v)] = {'l': delta / d[c_label]}
-            print(f"  G[{j}] edge ({u},{v}) -> l = {l0[(u,v)]['l']}")
+            # print(f"  G[{j}] edge ({u},{v}) -> l = {l0[(u,v)]['l']}")
         nx.set_edge_attributes(Gj, l0)
 
 
@@ -552,7 +552,7 @@ def max_concurrent_flow_split_per_commodity_graphs(
     stop = False
 
     while not stop:
-        print(f"\n================ PHASE i = {i} ================")
+        # print(f"\n================ PHASE i = {i} ================")
 
         paths[i] = {j: None for j in range(n_com)}
         f[i] = {}
@@ -564,30 +564,30 @@ def max_concurrent_flow_split_per_commodity_graphs(
             demand = ds[j]
             Gj = Gs[j]
 
-            print(f"\n--- Commodity j = {j} ---")
-            print(f"Source = {s}, Target = {t}, Demand = {demand}")
+            # print(f"\n--- Commodity j = {j} ---")
+            # print(f"Source = {s}, Target = {t}, Demand = {demand}")
 
             # Dentro de la fase, j sí ve lo acumulado por commodities previos
             if j != 0:
                 f[i][j] = copy.deepcopy(f[i][j - 1])
-                print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
+                # print(f"f[{i}][{j}] <- copy f[{i}][{j-1}]")
             else:
                 f[i][j] = copy.deepcopy(phase_zero_flow)
-                print(f"f[{i}][{j}] <- zero flow (new phase)")
+                # print(f"f[{i}][{j}] <- zero flow (new phase)")
 
             Gj_res = nx.Graph()
 
-            print("Residual capacities:")
+            # print("Residual capacities:")
             for u, v, d in Gj.edges(data=True):
                 ek = _edge_key(u, v)
                 used = f[i][j][ek]
                 cap_total = d[c_label]
                 cap_res = cap_total - used
 
-                print(
-                    f"  edge ({u},{v}): cap_total={cap_total}, "
-                    f"used={used}, cap_res={cap_res}"
-                )
+                # print(
+                #     f"  edge ({u},{v}): cap_total={cap_total}, "
+                #     f"used={used}, cap_res={cap_res}"
+                # )
 
                 if cap_res > 1e-12:
                     Gj_res.add_edge(
@@ -601,7 +601,7 @@ def max_concurrent_flow_split_per_commodity_graphs(
             Gj_res.add_nodes_from(Gj.nodes(data=True))
 
             if not (s in Gj_res and t in Gj_res and nx.has_path(Gj_res, s, t)):
-                print(f"No residual path for commodity {j}")
+                # print(f"No residual path for commodity {j}")
                 paths[i][j] = []
                 continue
 
@@ -612,20 +612,20 @@ def max_concurrent_flow_split_per_commodity_graphs(
                 delta=delta
             )
 
-            print("\nMin-cost returned paths:")
-            for p, fl in used_paths:
-                print(f"  Path {p} flow={fl}")
+            # print("\nMin-cost returned paths:")
+            # for p, fl in used_paths:
+            #     print(f"  Path {p} flow={fl}")
 
             for path, flow in used_paths:
                 for u, v in zip(path[:-1], path[1:]):
                     ek = _edge_key(u, v)
                     f[i][j][ek] += flow
-                    print(f"ADD global-in-phase flow on {ek}: +{flow} -> {f[i][j][ek]}")
+                    # print(f"ADD global-in-phase flow on {ek}: +{flow} -> {f[i][j][ek]}")
 
             paths[i][j] = used_paths
 
 
-            print("\nUpdating edge lengths with accumulated in-phase flow:")
+            # print("\nUpdating edge lengths with accumulated in-phase flow:")
             for jj, Gjj in enumerate(Gs):
                 new_l = {}
                 for u, v, d in Gjj.edges(data=True):
@@ -636,11 +636,11 @@ def max_concurrent_flow_split_per_commodity_graphs(
 
                     new_l[(u, v)] = {'l': new_val}
 
-                    print(
-                        f"  G[{jj}] edge ({u},{v}): "
-                        f"fij={fij}, cap={d[c_label]}, "
-                        f"l_old={old_l}, l_new={new_val}"
-                    )
+                    # print(
+                    #     f"  G[{jj}] edge ({u},{v}): "
+                    #     f"fij={fij}, cap={d[c_label]}, "
+                    #     f"l_old={old_l}, l_new={new_val}"
+                    # )
 
                 nx.set_edge_attributes(Gjj, new_l)
 
@@ -648,7 +648,7 @@ def max_concurrent_flow_split_per_commodity_graphs(
         D = 0.0
         seen = set()
 
-        print("\nD(l) global:")
+        # print("\nD(l) global:")
         for Gj in Gs:
             for u, v, d in Gj.edges(data=True):
                 ek = _edge_key(u, v)
@@ -658,12 +658,12 @@ def max_concurrent_flow_split_per_commodity_graphs(
 
                 contrib = d['l'] * d[c_label]
                 D += contrib
-                print(f"  edge {ek}: l={d['l']} cap={d[c_label]} -> {contrib}")
+        #         print(f"  edge {ek}: l={d['l']} cap={d[c_label]} -> {contrib}")
 
-        print(f"\nTOTAL D = {D}")
+        # print(f"\nTOTAL D = {D}")
 
         stop = D >= 1
-        print("STOP =", stop)
+        # print("STOP =", stop)
 
         i += 1
 
