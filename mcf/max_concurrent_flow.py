@@ -295,20 +295,23 @@ def min_cost_v2(G, s, t, demand, c_label="capacity", l_label="l"):
     return dict(flow), used_paths, total_cost
 
 
-def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",delta=1.0):
-    
+def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l"):
+
+    # Sort the costs to use as cost their index in the sorted list
+    sorted_costs = np.unique(np.sort([G[u][v][cost] for u,v in G.edges]))
+    cost_idx = {sorted_costs[i]: i+1 for i in range(len(sorted_costs))}
 
     D = nx.DiGraph()
     # print('dict b', b)
     for n in G.nodes():
         D.add_node(n, demand=-b.get(n,0))
     
-    min_c_plus = float("inf")
-    for _, _, data in G.edges(data=True):
-        c_plus = max(data[cost], 0)
-        if c_plus > 0:
-            min_c_plus = min(min_c_plus, c_plus)
-
+    # -- B1
+    # min_c_plus = float("inf")
+    # for _, _, data in G.edges(data=True):
+    #     c_plus = max(data[cost], 0)
+    #     if c_plus > 0:
+    #         min_c_plus = min(min_c_plus, c_plus)
 
     for u, v, data in G.edges(data=True):
         cap = data[capacity]
@@ -317,7 +320,8 @@ def min_cost_noDigraph(G: nx.Graph,b: dict,capacity="capacity",cost="l",delta=1.
         
         # print(f"Delta={delta} cap={cap} c_plus={c_plus}")
        
-        weight_conver=int(c_plus/min_c_plus)
+        #weight_conver=int(c_plus/min_c_plus) # <-- B1
+        weight_conver = cost_idx[c]
         # print(f"weight_conver={weight_conver}")
         
         D.add_edge(u, v, capacity=cap, weight=weight_conver)
@@ -375,13 +379,14 @@ def flow_to_used_paths(flow_dict, s, t, tol=1e-9):
 
     return used_paths
 
-def min_cost_for_mcf(G, s, t, demand, c_label="capacity", l_label="l",delta='delta'):
+def min_cost_for_mcf(G, s, t, demand, c_label="capacity",
+                     l_label="l",delta='delta'):
     b = {n: 0 for n in G.nodes()}
     b[s] = demand
     b[t] = -demand
     # print("min_cost_for_mcf b =", b)
     # print("min_cost_for_mcf sum(b) =", sum(b.values()))
-    flow_dict = min_cost_noDigraph(G, b, c_label, l_label,delta)
+    flow_dict = min_cost_noDigraph(G, b, c_label, l_label)
     sent_from_s = sum(flow_dict.get(s, {}).values())
     # print(f"min_cost_for_mcf outflow from s in flow_dict = {sent_from_s}")
     used_paths = flow_to_used_paths(flow_dict, s, t)
@@ -454,6 +459,9 @@ def max_concurrent_flow_split(
             #     if val > 0:
                     # print(f"  f({u},{v}) = {val}")
 
+            logger.info(f"l wan3-e3_pgw1 {G['e3_pgw1']['wan3']['l']}")
+            logger.info(f"l wan3-e3_pgw2 {G['e3_pgw2']['wan3']['l']}")
+
             # ---- Solve min-cost ----
             flow_ij, used_paths = min_cost_for_mcf(
                 G, s, t, demand,
@@ -461,9 +469,9 @@ def max_concurrent_flow_split(
                 l_label='l',delta=delta
             )
 
-            # print("\nMin-cost returned paths:")
-            # for p, fl in used_paths:
-                # print(f"  Path {p}  flow={fl}")
+            logger.info("\nMin-cost returned paths:")
+            for p, fl in used_paths:
+                logger.info(f"  Path {p}  flow={fl}")
 
             # ---- Accumulate flow ----
             for path, flow in used_paths:
